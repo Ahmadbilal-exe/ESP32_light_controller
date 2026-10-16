@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ESP32 Global IoT Controller</title>
+    <!-- Tailwind CSS CDN for modern responsive UI styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col justify-between font-sans selection:bg-indigo-500 selection:text-white">
+
+    <!-- Header Section -->
+    <header class="w-full py-6 px-6 border-b border-slate-800 flex justify-between items-center max-w-4xl mx-auto">
+        <div class="flex items-center space-x-3">
+            <div class="bg-indigo-600 p-2.5 rounded-xl shadow-lg shadow-indigo-500/30">
+                <i class="fa-solid fa-microchip text-xl"></i>
+            </div>
+            <div>
+                <h1 class="font-bold text-lg tracking-tight">ESP32-C3 Node</h1>
+                <p class="text-xs text-slate-400">Global Cloud Control Panel</p>
+            </div>
+        </div>
+        <div id="connection-badge" class="flex items-center space-x-2 bg-slate-900 border border-slate-800 px-3 py-1.5 rounded-full text-xs">
+            <span id="status-dot" class="w-2.5 h-2.5 rounded-full bg-amber-500 animate-pulse"></span>
+            <span id="status-text" class="text-slate-300">Connecting...</span>
+        </div>
+    </header>
+
+    <!-- Main Content Control Panel -->
+    <main class="flex-grow flex items-center justify-center p-4">
+        <div class="bg-slate-900/60 backdrop-blur-xl border border-slate-800 p-8 rounded-3xl shadow-2xl w-full max-w-md text-center">
+            
+            <!-- LED Status Graphic Icon -->
+            <div class="relative w-32 h-32 mx-auto mb-6 flex items-center justify-center">
+                <div id="glow-ring" class="absolute inset-0 rounded-full bg-indigo-500/10 blur-xl transition-all duration-500"></div>
+                <div id="bulb-container" class="relative z-10 w-24 h-24 rounded-2xl bg-slate-800 border border-slate-700 flex items-center justify-center transition-all duration-300 shadow-inner">
+                    <i id="bulb-icon" class="fa-solid fa-lightbulb text-4xl text-slate-500 transition-all duration-300"></i>
+                </div>
+            </div>
+
+            <h2 id="led-status-title" class="text-xl font-semibold mb-1 text-slate-300">Light is Off</h2>
+            <p class="text-xs text-slate-500 mb-8">Tap toggle switch below to control GPIO 8</p>
+
+            <!-- Control Buttons Grid -->
+            <div class="grid grid-cols-2 gap-4">
+                <button onclick="setLed(1)" id="btn-on" class="w-full py-3.5 px-4 rounded-xl font-medium bg-slate-800 hover:bg-emerald-600/20 hover:border-emerald-500/50 border border-slate-700 text-slate-300 hover:text-emerald-400 transition-all active:scale-95 flex items-center justify-center space-x-2">
+                    <i class="fa-solid fa-power-off"></i>
+                    <span>Turn On</span>
+                </button>
+                <button onclick="setLed(0)" id="btn-off" class="w-full py-3.5 px-4 rounded-xl font-medium bg-slate-800 hover:bg-rose-600/20 hover:border-rose-500/50 border border-slate-700 text-slate-300 hover:text-rose-400 transition-all active:scale-95 flex items-center justify-center space-x-2">
+                    <i class="fa-solid fa-stop"></i>
+                    <span>Turn Off</span>
+                </button>
+            </div>
+
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="w-full py-4 text-center text-xs text-slate-600 border-t border-slate-900">
+        Secured via Firebase Realtime Cloud Link
+    </footer>
+
+    <!-- Firebase SDK Imports -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+
+        // TODO: Replace with your actual Firebase Web App Credentials
+        const firebaseConfig = {
+            apiKey: "YOUR_API_KEY",
+            authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
+            databaseURL: "https://YOUR_PROJECT_ID-default-rtdb.firebaseio.com",
+            projectId: "YOUR_PROJECT_ID",
+            storageBucket: "YOUR_PROJECT_ID.appspot.com",
+            messagingSenderId: "YOUR_SENDER_ID",
+            appId: "YOUR_APP_ID"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getDatabase(app);
+
+        // Bind buttons globally so inline onclick works
+        window.setLed = function(state) {
+            set(ref(db, 'control/led'), state).catch((error) => {
+                console.error("Error updating database: ", error);
+            });
+        }
+
+        // Listen for live updates to reflect real UI state
+        const ledRef = ref(db, 'control/led');
+        onValue(ledRef, (snapshot) => {
+            const val = snapshot.val();
+            const bulbIcon = document.getElementById('bulb-icon');
+            const bulbContainer = document.getElementById('bulb-container');
+            const glowRing = document.getElementById('glow-ring');
+            const statusTitle = document.getElementById('led-status-title');
+            const statusDot = document.getElementById('status-dot');
+            const statusText = document.getElementById('status-text');
+
+            // Update Connection Indicator
+            statusDot.className = "w-2.5 h-2.5 rounded-full bg-emerald-500";
+            statusText.innerText = "System Online";
+
+            if (val === 1) {
+                bulbIcon.className = "fa-solid fa-lightbulb text-4xl text-amber-400 drop-shadow-[0_0_15px_rgba(251,191,36,0.6)]";
+                bulbContainer.className = "relative z-10 w-24 h-24 rounded-2xl bg-amber-500/10 border border-amber-500/40 flex items-center justify-center transition-all duration-300 shadow-inner";
+                glowRing.className = "absolute inset-0 rounded-full bg-amber-500/20 blur-xl transition-all duration-500";
+                statusTitle.innerText = "Light is Active";
+                statusTitle.className = "text-xl font-semibold mb-1 text-amber-400";
+            } else {
+                bulbIcon.className = "fa-solid fa-lightbulb text-4xl text-slate-500";
+                bulbContainer.className = "relative z-10 w-24 h-24 rounded-2xl bg-slate-800 border border-slate-700 flex items-center justify-center transition-all duration-300 shadow-inner";
+                glowRing.className = "absolute inset-0 rounded-full bg-indigo-500/10 blur-xl transition-all duration-500";
+                statusTitle.innerText = "Light is Off";
+                statusTitle.className = "text-xl font-semibold mb-1 text-slate-300";
+            }
+        }, (error) => {
+            const statusDot = document.getElementById('status-dot');
+            const statusText = document.getElementById('status-text');
+            statusDot.className = "w-2.5 h-2.5 rounded-full bg-rose-500";
+            statusText.innerText = "Connection Error";
+        });
+    </script>
+</body>
+</html>
